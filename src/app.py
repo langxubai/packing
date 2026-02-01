@@ -3,6 +3,7 @@ import pandas as pd
 import json
 import os
 from streamlit_gsheets import GSheetsConnection
+from streamlit_sortables import sort_items
 
 # --- 0. 配置与常量 ---
 st.set_page_config(page_title="旅行打包助手", page_icon="🧳")
@@ -152,36 +153,72 @@ with tab2:
                 st.rerun()
 
 # --- TAB 3: 模板管理 ---
+# with tab3:
+#     st.header("管理你的装备库")
+#     col_cat, col_edit = st.columns([1, 2])
+    
+#     with col_cat:
+#         cat_list = list(st.session_state.templates.keys())
+#         selected_cat = st.radio("选择分类", cat_list) if cat_list else None
+
+#         st.markdown("---")
+#         new_cat_name = st.text_input("新建分类名")
+#         if st.button("添加分类"):
+#             if new_cat_name and new_cat_name not in st.session_state.templates:
+#                 st.session_state.templates[new_cat_name] = []
+#                 save_data()
+#                 st.rerun()
+        
+#         if st.button("删除当前选中分类", type="primary"):
+#             if selected_cat:
+#                 del st.session_state.templates[selected_cat]
+#                 save_data()
+#                 st.rerun()
+
+#     with col_edit:
+#         if selected_cat:
+#             current_items = st.session_state.templates[selected_cat]
+#             df_items = pd.DataFrame({"物品名称": current_items})
+#             edited_df = st.data_editor(df_items, num_rows="dynamic", use_container_width=True)
+            
+#             if st.button("保存该分类更改"):
+#                 new_list = [x for x in edited_df["物品名称"].tolist() if x and str(x).strip() != ""]
+#                 st.session_state.templates[selected_cat] = new_list
+#                 save_data()
+#                 st.success(f"{selected_cat} 已更新并同步！")
 with tab3:
     st.header("管理你的装备库")
-    col_cat, col_edit = st.columns([1, 2])
     
-    with col_cat:
-        cat_list = list(st.session_state.templates.keys())
-        selected_cat = st.radio("选择分类", cat_list) if cat_list else None
+    # 路径 A: 改变分类本身的顺序
+    st.subheader("调整分类顺序")
+    cat_list = list(st.session_state.templates.keys())
+    # 这里的 sort_items 允许用户直接在网页拖动标签
+    sorted_cats = sort_items(cat_list, direction="horizontal", key="sort_categories")
+    
+    if sorted_cats != cat_list:
+        # 如果顺序变了，重建字典并保存
+        new_templates = {cat: st.session_state.templates[cat] for cat in sorted_cats}
+        st.session_state.templates = new_templates
+        save_data()
+        st.rerun()
 
-        st.markdown("---")
-        new_cat_name = st.text_input("新建分类名")
-        if st.button("添加分类"):
-            if new_cat_name and new_cat_name not in st.session_state.templates:
-                st.session_state.templates[new_cat_name] = []
-                save_data()
-                st.rerun()
-        
-        if st.button("删除当前选中分类", type="primary"):
-            if selected_cat:
-                del st.session_state.templates[selected_cat]
-                save_data()
-                st.rerun()
+    st.divider()
+
+    # 路径 B: 改变分类内物品的顺序
+    col_cat, col_edit = st.columns([1, 2])
+    with col_cat:
+        selected_cat = st.radio("当前操作分类", sorted_cats) if sorted_cats else None
+        # ... 保留添加/删除分类的代码 ...
 
     with col_edit:
         if selected_cat:
-            current_items = st.session_state.templates[selected_cat]
-            df_items = pd.DataFrame({"物品名称": current_items})
-            edited_df = st.data_editor(df_items, num_rows="dynamic", use_container_width=True)
+            st.write(f"拖动以排序 **{selected_cat}** 中的物品：")
+            items_to_sort = st.session_state.templates[selected_cat]
             
-            if st.button("保存该分类更改"):
-                new_list = [x for x in edited_df["物品名称"].tolist() if x and str(x).strip() != ""]
-                st.session_state.templates[selected_cat] = new_list
+            # 执行拖拽排序
+            sorted_items = sort_items(items_to_sort, key=f"sort_{selected_cat}")
+            
+            if sorted_items != items_to_sort:
+                st.session_state.templates[selected_cat] = sorted_items
                 save_data()
-                st.success(f"{selected_cat} 已更新并同步！")
+                st.rerun()
