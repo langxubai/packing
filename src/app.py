@@ -4,29 +4,54 @@ import json
 from streamlit_gsheets import GSheetsConnection
 
 # --- 0. 配置与常量 ---
-st.set_page_config(page_title="旅行打包助手 (云端同步版)", page_icon="🧳")
+st.set_page_config(page_title="旅行打包助手", page_icon="🧳")
 
-# --- 1. Google Sheets 连接与持久化 ---
+# --- 1. 智能连接初始化 ---
+
+def get_connection():
+    """
+    自适应获取连接：
+    1. 优先尝试寻找本地 .streamlit/google-creds.json
+    2. 如果找不到，则由 st-gsheets-connection 自动寻找 Streamlit Cloud Secrets
+    """
+    local_creds = ".streamlit/google-creds.json"
+    
+    if os.path.exists(local_creds):
+        # 本地开发模式：使用本地 JSON 文件路径
+        return st.connection(
+            "gsheets", 
+            type=GSheetsConnection, 
+            service_account=local_creds
+        )
+    else:
+        # 云端部署模式：自动从 Secrets 中读取名为 [connections.gsheets] 的配置
+        return st.connection("gsheets", type=GSheetsConnection)
 
 # 初始化连接
-# 注意：需要在 Streamlit Cloud 的 Secrets 中配置好 connection 信息
-conn = st.connection("gsheets", type=GSheetsConnection)
+conn = get_connection()
 
 def load_data():
-    """从 Google Sheets 加载数据"""
+    """从云端加载数据"""
     try:
-        # 读取表格内容
-        df = conn.read(ttl=0) # ttl=0 确保每次都获取最新数据，不使用缓存
-        if df.empty:
-            return get_default_data()
-        
-        # 假设我们将数据以 key-value 形式存在表格里，或者直接存一个大的 JSON 字符串
-        # 这里采用最稳妥的方式：将整个数据字典转为 JSON 存入第一行第一列
-        raw_json = df.iloc[0, 0]
-        return json.loads(raw_json)
-    except Exception as e:
-        # 如果读取失败（如表格为空或不存在），返回默认值
+        # ttl=0 确保禁用缓存，获取最新勾选状态
+        df = conn.read(ttl=0) 
+        if df is not None and not df.empty:
+            raw_json = df.iloc[0, 0]
+            return json.loads(raw_json)
         return get_default_data()
+    except Exception:
+        return get_default_data()
+
+def save_data():
+    """保存数据到云端"""
+    data_to_save = {
+        "templates": st.session_state.templates,
+        "current_trip": st.session_state.current_trip
+    }
+    json_str = json.dumps(data_to_save, ensure_ascii=False)
+    df = pd.DataFrame([json_str])
+    # 覆盖写入
+    conn.update(data=df)
 
 def get_default_data():
     """默认的模板数据"""
@@ -39,19 +64,6 @@ def get_default_data():
         },
         "current_trip": {}
     }
-
-def save_data():
-    """将数据保存回 Google Sheets"""
-    data_to_save = {
-        "templates": st.session_state.templates,
-        "current_trip": st.session_state.current_trip
-    }
-    # 将字典转为 JSON 字符串并放入 DataFrame
-    json_str = json.dumps(data_to_save, ensure_ascii=False)
-    df = pd.DataFrame([json_str])
-    
-    # 更新到表格（这会覆盖整个工作表，简单高效）
-    conn.update(data=df)
 
 # --- 2. 初始化 Session State ---
 
