@@ -187,38 +187,73 @@ with tab2:
 #                 save_data()
 #                 st.success(f"{selected_cat} 已更新并同步！")
 with tab3:
-    st.header("管理你的装备库")
+    st.header("⚙️ 模板高级管理")
     
-    # 路径 A: 改变分类本身的顺序
-    st.subheader("调整分类顺序")
+    # --- 1. 分类排序与管理 ---
+    st.subheader("1. 调整分类顺序与名称")
     cat_list = list(st.session_state.templates.keys())
-    # 这里的 sort_items 允许用户直接在网页拖动标签
-    sorted_cats = sort_items(cat_list, direction="horizontal", key="sort_categories")
     
+    # 拖拽排序分类
+    sorted_cats = sort_items(cat_list, direction="horizontal", key="sort_categories_v2")
     if sorted_cats != cat_list:
-        # 如果顺序变了，重建字典并保存
-        new_templates = {cat: st.session_state.templates[cat] for cat in sorted_cats}
-        st.session_state.templates = new_templates
+        st.session_state.templates = {cat: st.session_state.templates[cat] for cat in sorted_cats}
         save_data()
         st.rerun()
 
-    st.divider()
-
-    # 路径 B: 改变分类内物品的顺序
-    col_cat, col_edit = st.columns([1, 2])
-    with col_cat:
-        selected_cat = st.radio("当前操作分类", sorted_cats) if sorted_cats else None
-        # ... 保留添加/删除分类的代码 ...
-
-    with col_edit:
-        if selected_cat:
-            st.write(f"拖动以排序 **{selected_cat}** 中的物品：")
-            items_to_sort = st.session_state.templates[selected_cat]
-            
-            # 执行拖拽排序
-            sorted_items = sort_items(items_to_sort, key=f"sort_{selected_cat}")
-            
-            if sorted_items != items_to_sort:
-                st.session_state.templates[selected_cat] = sorted_items
+    # 添加与重命名分类的 UI
+    col_add, col_del = st.columns(2)
+    with col_add:
+        new_cat = st.text_input("新增分类名称", key="new_cat_input")
+        if st.button("➕ 添加分类"):
+            if new_cat and new_cat not in st.session_state.templates:
+                st.session_state.templates[new_cat] = []
                 save_data()
                 st.rerun()
+    
+    # --- 2. 项目编辑与排序 ---
+    st.divider()
+    st.subheader("2. 编辑分类内项目")
+    
+    if sorted_cats:
+        selected_cat = st.radio("当前操作分类", sorted_cats, horizontal=True)
+        
+        # 使用列布局：左侧编辑内容，右侧拖拽排序
+        edit_col, sort_col = st.columns(2)
+        
+        with edit_col:
+            st.write(f"✍️ 修改/增删 **{selected_cat}** 内容")
+            current_items = st.session_state.templates[selected_cat]
+            # 使用 data_editor 允许用户直接在表格中修改文字、点击 + 号新增或点击删除
+            df_items = pd.DataFrame({"物品名称": current_items})
+            edited_df = st.data_editor(
+                df_items, 
+                num_rows="dynamic", 
+                use_container_width=True,
+                key=f"editor_{selected_cat}"
+            )
+            
+            if st.button(f"💾 保存 {selected_cat} 内容修改"):
+                new_list = [x for x in edited_df["物品名称"].tolist() if x and str(x).strip() != ""]
+                st.session_state.templates[selected_cat] = new_list
+                save_data()
+                st.success("内容已同步！")
+                st.rerun()
+
+        with sort_col:
+            st.write(f"↕️ 拖动调整 **{selected_cat}** 顺序")
+            items_to_sort = st.session_state.templates[selected_cat]
+            if items_to_sort:
+                sorted_items = sort_items(items_to_sort, key=f"sort_items_{selected_cat}")
+                if sorted_items != items_to_sort:
+                    st.session_state.templates[selected_cat] = sorted_items
+                    save_data()
+                    st.rerun()
+            else:
+                st.info("该分类暂无项目，请先在左侧添加。")
+        
+        # 删除分类按钮
+        st.divider()
+        if st.button(f"🗑️ 删除整个【{selected_cat}】分类", type="primary"):
+            del st.session_state.templates[selected_cat]
+            save_data()
+            st.rerun()
