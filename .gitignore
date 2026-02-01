@@ -14,6 +14,9 @@ env/
 .streamlit/secrets.toml
 # 如果你使用了 streamlit 的静态文件缓存
 .streamlit/config.toml
+#Google Sheets 连接配置文件
+.streamlit/*.json
+.streamlit/packing-486107-172e615a7075.json
 
 # --- 数据文件 (关键！) ---
 # 我们希望代码上云，但你的“个人打包状态”留在本地
