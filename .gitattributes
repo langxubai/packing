@@ -1,0 +1,16 @@
+# 默认行为：自动处理文本文件的换行符
+* text=auto
+
+# Python 文件：明确指定并在 diff 时优化显示
+*.py text diff=python
+
+# JSON 文件：视为文本
+*.json text
+
+# Docker 相关：★★★ 强制使用 LF 换行符 ★★★
+# 这样即使你在 Windows 上编辑，提交到仓库或在容器里跑时，
+# 它也会保持 Linux 风格的换行符，防止报错。
+Dockerfile text eol=lf
+
+# 如果你以后加了 Shell 脚本 (.sh)，也必须强制 LF
+*.sh text eol=lf

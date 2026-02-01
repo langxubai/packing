@@ -1,0 +1,29 @@
+# --- Python 通用 ---
+__pycache__/
+*.py[cod]
+*$py.class
+
+# --- 虚拟环境 (根据你的命名习惯) ---
+venv/
+env/
+.venv/
+.env
+
+# --- Streamlit 特定 ---
+# 极其重要：防止 API Key 或密码泄露
+.streamlit/secrets.toml
+# 如果你使用了 streamlit 的静态文件缓存
+.streamlit/config.toml
+
+# --- 数据文件 (关键！) ---
+# 我们希望代码上云，但你的“个人打包状态”留在本地
+packing_data.json
+
+# --- IDE 和 编辑器配置 ---
+.vscode/
+.idea/
+.DS_Store
+
+# --- Docker ---
+# 如果你有本地生成的 docker 缓存或其他临时文件
+docker-compose.override.yml
